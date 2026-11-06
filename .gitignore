@@ -1,0 +1,5 @@
+autocode-predictor
+build/
+*.o
+node_modules/
+.vscode-test/

@@ -1,0 +1,97 @@
+{
+  "name": "autocode-predictor-cpp",
+  "displayName": "AutoCodePredictor C++ (Code Completion & Learning Coach)",
+  "description": "Real-time C++ inline ghost-text code predictor and progressive idle learning assistant powered by a C++ Trie/N-Gram/Context engine.",
+  "version": "1.0.0",
+  "publisher": "autocode",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Education",
+    "Machine Learning"
+  ],
+  "activationEvents": [
+    "onLanguage:cpp",
+    "onLanguage:c",
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "autocode-sidebar",
+          "title": "AutoCode Learning Coach",
+          "icon": "$(mortar-board)"
+        }
+      ]
+    },
+    "views": {
+      "autocode-sidebar": [
+        {
+          "type": "webview",
+          "id": "autocode.learningCoachView",
+          "name": "C++ Learning Coach"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "autocode.explainCurrentLine",
+        "title": "AutoCode: Explain & Help Complete Current Line"
+      },
+      {
+        "command": "autocode.insertTopSuggestion",
+        "title": "AutoCode: Insert Suggested Code"
+      },
+      {
+        "command": "autocode.cycleNextSuggestion",
+        "title": "AutoCode: Cycle Next Code Suggestion"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "autocode.explainCurrentLine",
+        "key": "ctrl+shift+e",
+        "mac": "cmd+shift+e",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "autocode.cycleNextSuggestion",
+        "key": "alt+]",
+        "when": "editorTextFocus"
+      }
+    ],
+    "configuration": {
+      "title": "AutoCodePredictor C++",
+      "properties": {
+        "autocode.binaryPath": {
+          "type": "string",
+          "default": "",
+          "description": "Optional absolute path to the compiled 'autocode-predictor' C++ binary. If empty, automatically looks in the workspace root."
+        },
+        "autocode.hintDelayMs": {
+          "type": "number",
+          "default": 2000,
+          "description": "Milliseconds of cursor/typing inactivity on a line before showing a Progressive Learning Hint."
+        },
+        "autocode.stuckDelayMs": {
+          "type": "number",
+          "default": 4500,
+          "description": "Milliseconds of inactivity on a line before expanding the Full Learning Guide and proactively triggering ghost text."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.0"
+  }
+}

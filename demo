@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+set -e
+
+# Always run from the project root directory regardless of where the script was invoked
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$PROJECT_DIR"
+
+# 1. Auto-build if binary is missing or any C++ source file is newer than the binary
+if [ ! -f "./autocode-predictor" ] || [ -n "$(find src include -newer ./autocode-predictor 2>/dev/null)" ]; then
+    echo -e "\033[1;34m[AutoCode] Building C++20 Predictor Engine...\033[0m"
+    make -s
+fi
+
+MODE="${1:-menu}"
+
+case "$MODE" in
+    tui|terminal)
+        echo -e "\033[1;32m[AutoCode] Launching Interactive Terminal TUI (Press Ctrl+Q anytime to exit back to normal shell)...\033[0m"
+        sleep 0.4
+        ./autocode-predictor --tui "${2:-playground.cpp}"
+        echo -e "\033[1;32m[AutoCode] Terminal TUI closed — back to your default environment!\033[0m"
+        ;;
+
+    watch|companion)
+        echo -e "\033[1;32m[AutoCode] Starting Live Companion Watcher on ${2:-playground.cpp} (Press Ctrl+C to stop)...\033[0m"
+        ./autocode-predictor --watch "${2:-playground.cpp}"
+        ;;
+
+    showcase|test)
+        ./autocode-predictor --test
+        echo ""
+        ./autocode-predictor --demo
+        ;;
+
+    vscode|ext)
+        echo -e "\033[1;36m[AutoCode] Launching isolated VS Code Extension Host window...\033[0m"
+        echo -e "\033[90m(Close that window when finished — your default VS Code setup remains untouched!)\033[0m"
+        if command -v code >/dev/null 2>&1; then
+            code --extensionDevelopmentPath="$PROJECT_DIR/vscode-extension" "$PROJECT_DIR/playground.cpp"
+        elif command -v agy >/dev/null 2>&1; then
+            agy --extensionDevelopmentPath="$PROJECT_DIR/vscode-extension" "$PROJECT_DIR/playground.cpp"
+        else
+            echo "Press F5 inside VS Code to launch the Extension Development Host window."
+        fi
+        ;;
+
+    *)
+        echo -e "\033[1;36m====================================================================\033[0m"
+        echo -e "\033[1;37m   AutoCodePredictor C++ — 1-Command Quick Demo Launcher            \033[0m"
+        echo -e "\033[1;36m====================================================================\033[0m"
+        echo -e "Choose what to demonstrate:"
+        echo -e "  \033[1;33m1)\033[0m Interactive Terminal Code Predictor TUI  \033[90m(./demo tui)\033[0m"
+        echo -e "  \033[1;33m2)\033[0m Live Companion Watcher for Current Editor \033[90m(./demo watch)\033[0m"
+        echo -e "  \033[1;33m3)\033[0m Instant 4-Scenario Showcase + Unit Tests  \033[90m(./demo showcase)\033[0m"
+        echo -e "  \033[1;33m4)\033[0m Launch Isolated VS Code Extension Window  \033[90m(./demo vscode)\033[0m"
+        echo -e "  \033[1;33mq)\033[0m Quit"
+        echo ""
+        read -r -p "Select option [1-4, default=1]: " choice
+        case "${choice:-1}" in
+            1) exec "$0" tui ;;
+            2) exec "$0" watch ;;
+            3) exec "$0" showcase ;;
+            4) exec "$0" vscode ;;
+            *) echo "Exited." ;;
+        esac
+        ;;
+esac
