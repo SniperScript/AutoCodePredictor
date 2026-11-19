@@ -1,21 +1,12 @@
-CXX := g++
-CXXFLAGS := -std=c++20 -Wall -Wextra -O2 -Iinclude
-
-SRCS := src/main.cpp \
-        src/core/trie.cpp \
-        src/core/ngram_model.cpp \
-        src/core/context_analyzer.cpp \
-        src/core/knowledge_base.cpp \
-        src/core/predictor_engine.cpp \
-        src/core/json_protocol.cpp \
-        src/terminal/terminal_tui.cpp
-
+CXX ?= g++
+CXXFLAGS ?= -std=c++17 -Wall -Wextra -O2
+SOURCES := src/main.cpp src/engine.cpp src/rules.cpp src/scope.cpp src/trie.cpp src/ngram.cpp src/editor.cpp src/terminal.cpp tests/tests.cpp
 TARGET := autocode-predictor
 
 all: $(TARGET)
 
-$(TARGET): $(SRCS)
-	$(CXX) $(CXXFLAGS) -o $(TARGET) $(SRCS)
+$(TARGET): $(SOURCES) $(wildcard src/*.hpp) tests/tests.hpp
+	$(CXX) $(CXXFLAGS) $(SOURCES) -o $(TARGET)
 
 test: $(TARGET)
 	./$(TARGET) --test

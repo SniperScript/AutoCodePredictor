@@ -1,5 +1,4 @@
 autocode-predictor
+*.exe
 build/
 *.o
-node_modules/
-.vscode-test/

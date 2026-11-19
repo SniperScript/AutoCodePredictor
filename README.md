@@ -1,72 +1,103 @@
-# AutoCodePredictor C++ — Code Predictor & Progressive Learning Coach
+# AutoCodePredictor
 
-**AutoCodePredictor** is a dual-mode C++ code completion and educational coaching system built in **C++20** with both:
-1. **An Interactive Terminal TUI Editor & Companion Watcher** (`./autocode-predictor`)
-2. **A Native VS Code Extension** (`vscode-extension/`) powered by the C++ backend over a persistent JSON-RPC stdio stream (`--server`).
+**C++ code completion with a learning coach, written entirely in C++ (standard library only).**
 
-Unlike standard autocomplete tools that only show raw text, **AutoCodePredictor** tracks how long you have been settled/stuck on a line of code and progressively unlocks **conceptual hints**, **complete line/next-step predictions**, **"Why This Works" explanations**, **Big-O complexity notes**, and **common C++ pitfalls**.
+You type C++ in a small terminal editor. A suggestion appears in grey at the cursor.
+If you **pause**, the coach helps more:
 
----
+| Pause | What you see |
+|---|---|
+| typing | the suggestion only |
+| 2 seconds | + a **hint** |
+| 4.5 seconds | + **why it works**, its **cost** (Big-O) and a **common pitfall** |
 
-## Architecture & C++ Data Structures
+Works on **Windows, Linux and macOS**.
 
-The core engine (`src/core/`, `include/`) has zero external dependencies and combines 5 specialized C++ sub-engines:
+## Features
 
-1. **Weighted Prefix Trie (`Trie`)** — [`include/trie.hpp`](include/trie.hpp) / [`src/core/trie.cpp`](src/core/trie.cpp)
-   - Stores C++ keywords, headers, idioms, and dynamically discovered local variables with adaptive frequency boosting when suggestions are accepted.
-2. **Bi-gram & Tri-gram Markov Model (`NGramModel`)** — [`include/ngram_model.hpp`](include/ngram_model.hpp) / [`src/core/ngram_model.cpp`](src/core/ngram_model.cpp)
-   - Tokenizes C++ code and learns sequence transitions both from curated STL patterns and dynamically from the user's current file buffer.
-3. **Lexical & Scope Context Analyzer (`ContextAnalyzer`)** — [`include/context_analyzer.hpp`](include/context_analyzer.hpp) / [`src/core/context_analyzer.cpp`](src/core/context_analyzer.cpp)
-   - Tracks `#include` headers, brace scope depth, and local variable declarations with their normalized types (`std::vector`, `std::unordered_map`, `std::map`, `std::set`, `std::string`, `std::queue`, `std::stack`, `std::priority_queue`, smart pointers).
-4. **Pedagogical Knowledge Base & Intent Matcher (`KnowledgeBase`)** — [`include/knowledge_base.hpp`](include/knowledge_base.hpp) / [`src/core/knowledge_base.cpp`](src/core/knowledge_base.cpp)
-   - **Type-Aware Member Completion**: Typing `nums.` or `mp.fi` inspects the variable's declared type and suggests valid STL methods tailored to that variable name.
-   - **Mid-Line Syntax Completion**: Typing `for (`, `while (`, `if (`, or `std::sort(` automatically uses the actual container variable names in scope (e.g., `for (int i = 0; i < static_cast<int>(nums.size()); ++i)`).
-   - **Comment-to-Code Intent Matcher**: Writing `// sort in descending order`, `// binary search`, `// frequency count`, `// print`, `// sum`, or `// read file` and pausing on the line below generates the exact C++ implementation using your in-scope variables.
-   - **Stuck Next-Step Workflow Coach**: If you pause on an empty line right after declaring a `std::vector`, opening a `for` loop, or opening `int main()`, it predicts the next logical step in your program.
-5. **Progressive Idle Orchestrator (`PredictorEngine`)** — [`include/predictor_engine.hpp`](include/predictor_engine.hpp) / [`src/core/predictor_engine.cpp`](src/core/predictor_engine.cpp)
-   - **Stage 0 — `TYPING` (`< 2.0s` idle)**: Subtle inline gray ghost-text completion (`Tab` to accept).
-   - **Stage 1 — `PONDERING` (`2.0s – 4.5s` idle)**: Unlocks a **Progressive Conceptual Hint** nudging you on how to complete the line without overwhelming you.
-   - **Stage 2 — `STUCK` (`>= 4.5s` idle)**: Expands the **Full Learning Guide** with the complete code suggestion, deep explanation of *why* it works, time/space complexity, and common pitfalls.
+1. **Autocomplete (Trie):** variables in scope, C++ keywords and standard library names.
+   Words you accept rank higher next time.
+2. **Scope-aware:** only variables visible at the cursor are suggested. A variable from another
+   function, or from a loop that has finished, is not.
+3. **Next-word prediction (N-gram):** after `std::cout << total <<` it predicts `std`, learning
+   from sample code and from your own file.
+4. **Container functions:** after `nums.` it lists the functions of that container type
+   (`push_back`, `size`, ...), with their real cost for that type.
+5. **Learning hints:** every suggestion comes with a hint, an explanation, its cost and a pitfall.
 
----
+## How it works (the data structures)
 
-## Quick Start
+| Idea | Data structure | Cost |
+|---|---|---|
+| Find all words starting with `cou` | **Trie** (prefix tree). Children are kept in a `std::map`, so words come out alphabetically; then they are ordered by weight | reach the prefix O(L), then sort the m matches O(m log m) |
+| Which variables exist here | **Stack of scopes**: `{` pushes, `}` pops and removes that block's variables (restoring any outer one they hid) | O(1) per brace, O(file length) per scan |
+| Most likely next word | **N-gram model**: hash maps of counts, (last 1 or 2 tokens) -> (next token -> count). Uses the last 2 tokens if that pair was seen ("trigram"), else the last 1 ("bigram") | O(1) average lookup |
+| What C++ offers | **Tables** of keywords, library names, container functions, headers and lessons (`rules.cpp`) | O(table size) |
 
-### 1. Build & Run Tests
+## Files: where each part is
+
+| File | What it contains |
+|---|---|
+| `src/trie.hpp/.cpp` | The Trie: `insert`, `complete`, `boost` (learning) |
+| `src/scope.hpp/.cpp` | Reads the code up to the cursor: the scope stack, declarations, the comment above, the word being typed. Also the tokenizer |
+| `src/ngram.hpp/.cpp` | The N-gram next-word model: `learn`, `predict` |
+| `src/rules.hpp/.cpp` | The knowledge (keyword lists, container functions, headers, lessons) and the three rules: container functions, syntax (`for (`, `#include <`), next steps |
+| `src/engine.hpp/.cpp` | Combines everything, ranks the suggestions, decides the learning stage from the pause |
+| `src/terminal.hpp/.cpp` | The only platform-specific code: reading single keys (Windows `conio.h`, Linux/macOS `termios`) |
+| `src/editor.hpp/.cpp` | The interactive editor |
+| `src/main.cpp` | Program modes (editor, `--demo`, `--predict`, `--test`) and the showcase |
+| `tests/tests.cpp` | All tests |
+| `playground.cpp` | A starter program the editor opens by default |
+
+## Build and run
+
+**Windows** (g++ 10 or newer, for example WinLibs), from Command Prompt in this folder:
+```bat
+build.bat
+autocode-predictor.exe --demo
+autocode-predictor.exe
+```
+The first command builds, the second shows every feature, the third opens the editor on
+`playground.cpp`. Or just run `demo.bat`: it builds, runs the tests and the showcase.
+
+**Linux / macOS:**
 ```bash
 make
-./autocode-predictor --test
 ./autocode-predictor --demo
+./autocode-predictor
 ```
 
-### 2. Run the Terminal Code Predictor (Interactive TUI Editor)
-```bash
-./autocode-predictor playground.cpp
+Other commands:
 ```
-**Terminal TUI Controls:**
-- **Type C++ code**: Live inline gray ghost text appears automatically at the cursor.
-- **Pause for 2 seconds**: Status bar turns amber (`💡 PAUSED — Progressive Hint Unlocked`) and displays a conceptual hint in the bottom Learning Coach panel.
-- **Stay settled on a line for 4.5 seconds**: Status bar turns cyan (`🎓 STUCK ON LINE — Full Learning Guide Active`) and expands the full explanation, complexity, and pitfall guide (even on a blank line!).
-- `Tab`: Accept the current ghost-text completion (or insert the suggested next line).
-- `Ctrl+N`: Cycle through ranked alternative suggestions (`1/4`, `2/4`, ...).
-- `ESC` or `Ctrl+E`: Immediately expand the Full Learning Guide without waiting 4.5 seconds.
-- `Ctrl+S`: Save file.
-- `Ctrl+Q`: Quit.
-
-### 3. Run Terminal Companion Watcher Mode (For Vim / Nano / External Editors)
-If you prefer editing in `vim` or `nano`, open a second split terminal and run:
-```bash
-./autocode-predictor --watch playground.cpp
+autocode-predictor myfile.cpp                  open another file in the editor
+autocode-predictor --predict FILE LINE [MS]    suggestions at the end of LINE after a pause of MS milliseconds
+autocode-predictor --test                      run the tests
 ```
-Whenever you save or pause in your editor, the companion terminal displays live completions and learning explanations for your active line.
 
-### 4. Run the VS Code Extension
-1. Open this folder (`/home/xczn/Documents/Coding backup/AutoCodePredictor`) in **VS Code**.
-2. Press **`F5`** (uses [`.vscode/launch.json`](.vscode/launch.json) to launch an **Extension Development Host** window with `playground.cpp` open).
-3. In the Extension Development Host window:
-   - Open the **AutoCode Learning Coach** icon (`🎓` mortar-board) in the Activity Bar on the left.
-   - Type C++ code to see real-time **inline ghost text** (`Tab` to accept, `Alt+]` to cycle suggestions).
-   - **Pause on any line for 2–4.5 seconds**:
-     - Inline **CodeLens badges** (`💡 AutoCode Coach` & `✨ Insert`) appear above the line.
-     - The **AutoCode Learning Coach** sidebar automatically transitions from `⚡ Active Typing` → `💡 Hint Unlocked` → `🎓 Stuck Coach Active (Full Learning Guide)`.
-     - Press `Ctrl+Shift+E` anytime to explain and complete the current line immediately.
+## Editor keys
+
+| Key | Action |
+|---|---|
+| type | edit the current line (the cursor is always at the end of the line) |
+| **Tab** | insert the selected suggestion |
+| **Ctrl+N** | select the next suggestion |
+| **Ctrl+E** | show the full explanation now, without waiting |
+| Up / Down | move to another line |
+| Enter | new line (indents automatically) |
+| **Ctrl+S** | save |
+| **Esc** | quit |
+
+## Tests
+
+`--test` runs 44 checks: every feature, plus regression checks for bugs found in an earlier
+code review (scopes, half-typed or renamed names, N-gram counts).
+
+## Limits
+
+- The scope analysis reads declarations line by line; it is not a full C++ parser
+  (for example, function parameters are not tracked as variables).
+- Container suggestions use placeholders such as `push_back(val)` that you then edit.
+- Comment-to-code generation (`// sort the vector` -> code) was removed to keep the project focused
+  on its data structures.
+- What the coach learns (accepted words) is kept in memory only and resets when you quit.
+- The editor is deliberately simple: the cursor stays at the end of the line.

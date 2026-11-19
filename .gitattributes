@@ -1,0 +1,4 @@
+# Keep line endings right on every machine:
+*.bat text eol=crlf
+*.sh text eol=lf
+Makefile text eol=lf
